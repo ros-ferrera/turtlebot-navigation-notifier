@@ -4,6 +4,7 @@ import rospy
 
 # Kobuki includes
 from kobuki_msgs.msg import Led
+from kobuki_msgs.msg import Sound
 
 class TurtleLed():
     # Controls the status of one of the leds of the turtlebot2
@@ -103,6 +104,53 @@ class TurtleLed():
             self.__color_status = color
         return
     
+class TurtleSound():
+    # Class to control the sounds of your turtlebot 2.
+    # Use the method .Play with the following options:
+    #   - 0 'turn on'
+    #   - 1 'turn off'
+    #   - 2 'recharge start'
+    #   - 3 'press button'
+    #   - 4 'error sound'
+    #   - 5 'start cleaning'
+    #   - 6 'cleaning end'
+    def __init__(self):
+        
+        self.__sound_pub = rospy.Publisher('/mobile_base/commands/sound', Sound, queue_size= 3)
+
+        self.__sounds = {
+            'turn on': Sound.ON,
+            'turn off': Sound.OFF,
+            'recharge start': Sound.RECHARGE,
+            'press button': Sound.BUTTON,
+            'error sound': Sound.ERROR,
+            'start cleaning': Sound.CLEANINGSTART,
+            'cleaning end': Sound.CLEANINGEND,
+        }
+
+    def Play(self, sound):
+        # Plays a sound on the Turtlebot
+        # The available sound sequences:
+        #    - 0 'turn on'
+        #    - 1 'turn off'
+        #    - 2 'recharge start'
+        #    - 3 'press button'
+        #    - 4 'error sound'
+        #    - 5 'start cleaning'
+        #    - 6 'cleaning end'
+        #You can either pass the string or number above
+        if not isinstance(sound, (int, str)):
+                self.say("!! Invalid sound type, must be an Integer or a String!")
+                return
+        if isinstance(sound, str):
+            try:
+                sound = self.__sounds[sound]
+            except KeyError:
+                print ("!! Invalid sound")
+                return
+        self.__sound_pub.publish(Sound(sound))
+
+
 class Turtlebot():
     def __init__(self):
         rospy.init_node('turtlebot_notifier')
@@ -112,6 +160,9 @@ class Turtlebot():
             '1':  TurtleLed(1),
             '2':  TurtleLed(2)
         }
+
+        # Preparing sounds
+        self.__sounds = TurtleSound()
 
         # The system requires some time to prepare themselves
         rate = rospy.Rate(1)
@@ -140,59 +191,16 @@ turtle.Spin()
 
 
 
-# import sys
-# import time
-# import numpy as np
-# import random
-
-# from math import radians
-
-
-
-# from kobuki_msgs.msg import BumperEvent
-
-# from kobuki_msgs.msg import Sound
 
 
 
 
-#         self.__sound_pub = rospy.Publisher('/mobile_base/commands/sound', Sound)
 
 
 
-#     sounds = {
-#         'turn on': Sound.ON,
-#         'turn off': Sound.OFF,
-#         'recharge start': Sound.RECHARGE,
-#         'press button': Sound.BUTTON,
-#         'error sound': Sound.ERROR,
-#         'start cleaning': Sound.CLEANINGSTART,
-#         'cleaning end': Sound.CLEANINGEND,
-#     }
 
-#     def play_sound(self, sound_type):
-#         """Plays a sound on the Turtlebot
-#         The available sound sequences:
-#             - 0 'turn on'
-#             - 1 'turn off'
-#             - 2 'recharge start'
-#             - 3 'press button'
-#             - 4 'error sound'
-#             - 5 'start cleaning'
-#             - 6 'cleaning end'
-#         You can either pass the string or number above
-#         """
-#         if not isinstance(sound_type, (int, str)):
-#                 self.say("!! Invalid sound type, must be an Integer or a String!")
-#                 return
-#         if isinstance(sound_type, str):
-#             try:
-#                 sound_type = self.sounds[sound_type]
-#             except KeyError:
-#                 self.say("!! Invalid sound '{0}', must be one of: {1}"
-#                          .format(sound_type, self.sounds.keys()))
-#                 return
-#         self.__sound_pub.publish(Sound(sound_type))
+
+
 
 
 
