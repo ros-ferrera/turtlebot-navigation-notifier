@@ -70,7 +70,7 @@ class TurtleLed():
         self.__blink_color = 'orange'
 
         self.__Set_led('off')
-        print("Turtle led "+ str(led_num) +" prepared")
+        #print("Turtle led "+ str(led_num) +" prepared")
 
         self.__timer = []
 
@@ -96,14 +96,15 @@ class TurtleLed():
             rospy.signal_shutdown("!! Invalid blinking status " + start_blinking_in)
             return
 
+        # Resetting any old timer
+        if self.__timer:
+            self.__timer.shutdown()
+
         if status == "blinking":
             self.__blink_color = color
             self.__timer = rospy.Timer(rospy.Duration(int(time)), self.__Blink)
             if self.__blink_options[start_blinking_in]:
                 color = "off"
-        else:
-            if self.__timer:
-                self.__timer.shutdown()
 
         self.__Set_led(color)
         self.__led_status = status
@@ -226,33 +227,37 @@ class Turtlebot():
 
     def __SetNewStatus(self, status):
         # Shows a new status with the leds and sounds of the turtlebot
-
-        print (str(status) + " " + str(self.__last_state) )
         self.__last_state = status 
-
         
         #http://docs.ros.org/api/actionlib_msgs/html/msg/GoalStatus.html
         if (status == GoalStatus.PENDING):
             print ("pending")
+            self.__leds['2'].Status("orange")
+            return
+        if (status == GoalStatus.PREEMPTED):
+            print ("preempted")
+            # Transition status (reset leds) (silent active)
+            self.__leds['1'].Status("green", "blinking", "on")
+            self.__leds['2'].Status("green", "blinking", "off")
             return
         if (status == GoalStatus.ACTIVE):
+            print ("active")
             # The goal is currently being processed by the action server
             self.__leds['1'].Status("orange", "blinking", "on")
             self.__leds['2'].Status("orange", "blinking", "off")
             self.__sounds.Play(3) # Small bip
             return
-        if (status == GoalStatus.PREEMPTED):
-            print ("pending")
-            return
         if (status == GoalStatus.SUCCEEDED):
+            print ("succeed")
             self.__leds['1'].Status("green")
             self.__leds['2'].Status("off")
             self.__sounds.Play(3) # Really small bip
             return
         if (status == GoalStatus.ABORTED):
+            print ("aborted")
             self.__leds['1'].Status("red","blinking", "on")
             self.__leds['2'].Status("red","blinking", "off")
-            self.__sounds.Play(5)  #Complaining
+            self.__sounds.Play(4)  #Complaining
             return
         if (status == GoalStatus.REJECTED):
             print ("rejected")
