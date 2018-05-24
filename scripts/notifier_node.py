@@ -5,81 +5,125 @@ import rospy
 # Kobuki includes
 from kobuki_msgs.msg import Led
 
-class Turtlebot():
-    def __init__(self):
-        rospy.init_node('turtlebot_notifier')
+class TurtleLed():
+    # Controls the status of one of the leds of the turtlebot2
+    # To update it, use .update() method
+    # To change its status, use .status(color, status, time) method
+    #   colors = "off", "black", "green", "orange", "red"
+    #   status = "off", "static", "blinking"
+    #   time   = blinking time
+    def __init__(self, led_num):
+        if (led_num == 1 or led_num == 2):
+            self.__led_num = led_num
+            self.__led_pub = rospy.Publisher('/mobile_base/commands/led' + str(led_num), Led, queue_size= 3)
+        else:
+            print ("!! Invalid led " + str(led) + ", must be either '1' or '2'")
+            rospy.signal_shutdown("Wrong led number used")
+        
+        # Preparing possible status
+        self.__possible_status = {
+            'off', 'static', 'blinking'
+        }
+        self.__led_status   = 'static'
 
-        # Preparing leds
-        self._led_colors = {
+        self.__led_colors = {
             'off': Led.BLACK,
             'black': Led.BLACK,
             'green': Led.GREEN,
             'orange': Led.ORANGE,
             'red': Led.RED,
         }
+        self.__color_status = 'other'
 
-        self._led_pubs = {
-            '1': rospy.Publisher('/mobile_base/commands/led1', Led, queue_size= 3),
-            '2': rospy.Publisher('/mobile_base/commands/led2', Led, queue_size= 3),
-        }
-        self._led_status = {
-            '1': 'green',
-            '2': 'green'
-        }
+        # Blinker control
+        self.__blink_color = 'orange'
 
-        self.Set_led(1, 'off')
-        self.Set_led(2, 'off')
+        self.__Set_led('off')
+        print("Turtle led "+ str(led_num) +" prepared")
 
-        # Preparing spin
-        self.spin_time = 1
-        self._led_blinker_time = {
-            '1': 0.0,
-            '2': 0.0
-        }
+        self.__timer = []
 
         return
 
-    def Set_led(self, led, color):
+    def Status(self, color, status = "off", time = "1"):
+        # Change the status of a led
+
+        if color not in self.__led_colors:
+            print ("!! Invalid led color " + color)
+            rospy.signal_shutdown("!! Invalid led color " + color)
+            return
+        if status not in self.__possible_status:
+            print ("!! Invalid led status " + status)
+            rospy.signal_shutdown("!! Invalid led color " + status)
+            return
+        if time <= 0.0:
+            print ("!! Invalid blinking time " + str(time))
+            rospy.signal_shutdown("!! Invalid blinking time" + str(time))
+            return
+
+        self.__Set_led(color)
+        self.__led_status = status
+
+        if status == "blinking":
+            self.__blink_color = color
+            self.__timer = rospy.Timer(rospy.Duration(int(time)), self.__Blink)
+        else:
+            if self.__timer:
+                self.__timer.shutdown()
+
+        return
+
+    def __Blink(self, event):
+        # Makes the led blink
+
+        if self.__color_status != 'off':
+            self.__Set_led('off')
+        else: 
+            self.__Set_led(self.__blink_color)
+
+        return
+
+    def __Set_led(self, color):
         # Set the color of an LED
-        #    You can set LED 1 or LED 2 to any of these colors:
+        #    You can set LED to any of these colors:
         #    - 'off'/'black'
         #    - 'green'
         #    - 'orange'
         #    - 'red'
         #    Example:
-        #        robot.set_led(1, 'green')
-        #        robot.set_led(1, 'off')
-        if str(led) not in self._led_pubs:
-            print ("!! Invalid led " + str(led) + ", must be either '1' or '2'")
-            return
-        if color not in self._led_colors:
+        #        robot.set_led('green')
+        #        robot.set_led('off')
+        if color not in self.__led_colors:
             print ("!! Invalid led color " + color)
+            rospy.signal_shutdown("!! Invalid led color " + color)
             return
-        if self._led_status[str(led)] != color:
-            print (color)
-            self._led_pubs[str(led)].publish(Led(self._led_colors[color]))
-            self._led_status[str(led)] = color
+        if self.__color_status != color:
+            print ("Led" + str(self.__led_num) + ": " + color)
+            self.__led_pub.publish(Led(self.__led_colors[color]))
+            self.__color_status = color
         return
+    
+class Turtlebot():
+    def __init__(self):
+        rospy.init_node('turtlebot_notifier')
 
-    def Blinking_led(self, led, color, time):
-        # Makes a led blink at the specified time 
-        # You can only call this function once per loop
-        if str(led) not in self._led_pubs:
-            print ("!! Invalid led " + str(led) + ", must be either '1' or '2'")
-            return
-        if color not in self._led_colors:
-            print ("!! Invalid led color " + color)
-            return
-        self._led_blinker_time[str(led)] += self.spin_time
-        if (self._led_blinker_time[str(led)] < time/2.0):
-            self.Set_led( led, color)
-        else: 
-            if (self._led_blinker_time[str(led)] < time):
-                self.Set_led( led, 'off')
-            else:
-                self.Set_led( led, color)
-                self._led_blinker_time[str(led)] -= time
-            
+        # Preparing leds
+        self.__leds = {
+            '1':  TurtleLed(1),
+            '2':  TurtleLed(2)
+        }
+
+        # The system requires some time to prepare themselves
+        rate = rospy.Rate(1)
+        rate.sleep()
+
+        self.__leds['1'].Status("off")
+        self.__leds['2'].Status("off")
+
+        # Preparing spin
+        self.spin_time = 1
+
+        return
 
     def Spin(self):
         # Main loop that spins while the robot moves  
@@ -87,7 +131,6 @@ class Turtlebot():
         rate = rospy.Rate(1/self.spin_time)
         while not rospy.is_shutdown():
             rospy.loginfo("Hey")
-            self.Blinking_led( 1, "green", 5)
             rate.sleep()
 
 
@@ -109,19 +152,9 @@ turtle.Spin()
 # from kobuki_msgs.msg import BumperEvent
 
 # from kobuki_msgs.msg import Sound
-# from kobuki_msgs.msg import WheelDropEvent
-# from geometry_msgs.msg import Twist
-# from nav_msgs.msg import Odometry
-# from sensor_msgs.msg import LaserScan
-# from tf import transformations as trans
-
-# _turtlebot_singleton = None
 
 
 
-# class Turtlebot(object):
-#     max_linear = 1.0
-#     max_angular = 2.0
 
 #         self.__sound_pub = rospy.Publisher('/mobile_base/commands/sound', Sound)
 
@@ -163,107 +196,54 @@ turtle.Spin()
 
 
 
-#     def get_ranges(self):
-#         return self.current_laser_msg.ranges
 
-#     def say_ranges(self):
-# 	msg = self.current_laser_msg
-# 	rngs = msg.ranges
-# 	self.say("range angle_min is {0}".format(msg.angle_min))
-# 	self.say("range angle_max is {0}".format(msg.angle_max))
-# 	self.say("range size is {0}".format(len(rngs)))
-# 	self.say("range min is {0}".format(msg.range_min))
-# 	self.say("range max is {0}".format(msg.range_max))
 
-# 	for i in range(0, 63):
-# 	    rng_pos = i * 10
-# 	    self.say("Range {0} is {1}".format(rng_pos, rngs[rng_pos]))
-# 	    rng_pos += 5
-# 	    self.say("Range {0} is {1}".format(rng_pos, rngs[rng_pos]))
 
-#     def index_to_rad(self, idx):
-#         msg = self.current_laser_msg
-#         rng = msg.angle_max
-#         rlen = len(msg.ranges)
-#         self.say("rng: " + str(rng))
-#         self.say("rlen: " + str(rlen))
-#         return -(rlen / 2.0 - idx) * rng / (rlen / 2.0)
-    
-#     def turn_around(self):
-#         self.turn_angle(np.pi)
 
-#     def random_angle(self):
-#         return random.uniform(-np.pi,np.pi)
+# Example code for the navigation stack
+# import rospy
 
-#     def turn_random(self):
-#         self.turn_angle(self.random_angle())
+# # Brings in the SimpleActionClient
+# import actionlib
+# # Brings in the .action file and messages used by the move base action
+# from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
-#     def find_closest(self):
-#         msg = self.current_laser_msg
-#         rngs = msg.ranges
-#         idx = np.nanargmin(rngs)
-#         self.say("idx: " + str(idx))                
-#         rad = self.index_to_rad(idx)
-#         return rngs[idx], rad
+# def movebase_client():
 
-#     def point_at_closest(self):
-# 	rng, rad = self.find_closest()
-# 	self.turn_angle(rad)
+#    # Create an action client called "move_base" with action definition file "MoveBaseAction"
+#     client = actionlib.SimpleActionClient('move_base',MoveBaseAction)
+ 
+#    # Waits until the action server has started up and started listening for goals.
+#     client.wait_for_server()
 
-#     def reset_movement(self):
-#         self.movement_enabled = True
+#    # Creates a new goal with the MoveBaseGoal constructor
+#     goal = MoveBaseGoal()
+#     goal.target_pose.header.frame_id = "map"
+#     goal.target_pose.header.stamp = rospy.Time.now()
+#    # Move 0.5 meters forward along the x axis of the "map" coordinate frame 
+#     goal.target_pose.pose.position.x = 0.5
+#    # No rotation of the mobile base frame w.r.t. map frame
+#     goal.target_pose.pose.orientation.w = 1.0
 
-#     def show_laser(self):
-#         from IPython import display
-#         from pylab import subplot, show
+#    # Sends the goal to the action server.
+#     client.send_goal(goal)
+#    # Waits for the server to finish performing the action.
+#     wait = client.wait_for_result()
+#    # If the result doesn't arrive, assume the Server is not available
+#     if not wait:
+#         rospy.logerr("Action server not available!")
+#         rospy.signal_shutdown("Action server not available!")
+#     else:
+#     # Result of executing the action
+#         return client.get_result()   
 
-#         lm = self.current_laser_msg
-#         r = lm.ranges
-#         theta = [radians(90) + lm.angle_min + i * lm.angle_increment for i, x in enumerate(r)]
-
-#         ax = subplot(111, polar=True)
-#         ax.plot(theta, r, color='r', linewidth=3)
-#         ax.set_rmax(6)
-#         ax.grid(True)
-
-#         ax.set_title("A line plot of the laser data", va='bottom')
-#         show()
-
-#     def __odom_handler(self, msg):
-#         self.__x = msg.pose.pose.position.x
-#         self.__y = msg.pose.pose.position.y
-#         q = msg.pose.pose.orientation
-#         a = trans.euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
-
-#         # cumulative angle doesn't wrap. assumes we've not moved more than pi radians
-#         # since last odom message
-#         if self.__have_odom:
-#             a_diff = a - self.__angle
-#             if a_diff > np.pi:
-#                 a_diff -= 2*np.pi
-#             elif a_diff < -np.pi:
-#                 a_diff += 2*np.pi
-#             self.__cumulative_angle += a_diff
-
-#         self.__angle = a
-#         self.__have_odom = True
-
-#     def __scan_handler(self, msg):
-#         self.current_laser_msg = msg
-
-#     def __bumper_handler(self, msg):
-#         if msg.state != BumperEvent.PRESSED:
-#             return
-#         if msg.bumper not in [BumperEvent.CENTER, BumperEvent.LEFT, BumperEvent.RIGHT]:
-#             return
-#         if self.on_bumper is not None:
-#             self.on_bumper.__call__()
-
-#     def __exit_if_movement_disabled(self):
-#         if not self.movement_enabled:
-#             self.say("Movement currently disabled")
-#             sys.exit()
-
-#     def __wheeldrop_handler(self, msg):
-#         if msg.state == WheelDropEvent.DROPPED:
-# self.movement_enabled = False
+# # If the python node is executed as main process (sourced directly)
+# if __name__ == '__main__':
+#     try:
+#        # Initializes a rospy node to let the SimpleActionClient publish and subscribe
+#         rospy.init_node('movebase_client_py')
+#         result = movebase_client()
+#         if result:
+#             rospy.loginfo("Goal execution done!")
+#     except rospy.ROSInterruptException:
+#         rospy.loginfo("Navigation test finished.")
