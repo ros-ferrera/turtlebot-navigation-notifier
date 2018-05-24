@@ -1,10 +1,36 @@
 #!/usr/bin/env python
+#
+# MIT License
+
+# Copyright (c) 2018 ros-ferrera
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 import rospy
 
 # Kobuki includes
 from kobuki_msgs.msg import Led
 from kobuki_msgs.msg import Sound
+
+# Navigation scatk includes
+from actionlib_msgs.msg import GoalStatusArray
+from actionlib_msgs.msg import GoalStatus
 
 class TurtleLed():
     # Controls the status of one of the leds of the turtlebot2
@@ -37,6 +63,10 @@ class TurtleLed():
         self.__color_status = 'other'
 
         # Blinker control
+        self.__blink_options = {
+            'on':  True,
+            'off': False
+        }
         self.__blink_color = 'orange'
 
         self.__Set_led('off')
@@ -46,8 +76,8 @@ class TurtleLed():
 
         return
 
-    def Status(self, color, status = "off", time = "1"):
-        # Change the status of a led
+    def Status(self, color, status = "off", start_blinking_in = "on", time = "1"):
+        # Change the status of a led (if is blinking, it can start_blinking_in on or off)
 
         if color not in self.__led_colors:
             print ("!! Invalid led color " + color)
@@ -55,22 +85,28 @@ class TurtleLed():
             return
         if status not in self.__possible_status:
             print ("!! Invalid led status " + status)
-            rospy.signal_shutdown("!! Invalid led color " + status)
+            rospy.signal_shutdown("!! Invalid led status " + status)
             return
         if time <= 0.0:
             print ("!! Invalid blinking time " + str(time))
             rospy.signal_shutdown("!! Invalid blinking time" + str(time))
             return
-
-        self.__Set_led(color)
-        self.__led_status = status
+        if start_blinking_in not in self.__blink_options:
+            print ("!! Invalid blinking status " + start_blinking_in)
+            rospy.signal_shutdown("!! Invalid blinking status " + start_blinking_in)
+            return
 
         if status == "blinking":
             self.__blink_color = color
             self.__timer = rospy.Timer(rospy.Duration(int(time)), self.__Blink)
+            if self.__blink_options[start_blinking_in]:
+                color = "off"
         else:
             if self.__timer:
                 self.__timer.shutdown()
+
+        self.__Set_led(color)
+        self.__led_status = status
 
         return
 
@@ -99,7 +135,7 @@ class TurtleLed():
             rospy.signal_shutdown("!! Invalid led color " + color)
             return
         if self.__color_status != color:
-            print ("Led" + str(self.__led_num) + ": " + color)
+            #print ("Led" + str(self.__led_num) + ": " + color)
             self.__led_pub.publish(Led(self.__led_colors[color]))
             self.__color_status = color
         return
@@ -168,90 +204,79 @@ class Turtlebot():
         rate = rospy.Rate(1)
         rate.sleep()
 
-        self.__leds['1'].Status("off")
+        self.__leds['1'].Status("green")
         self.__leds['2'].Status("off")
 
         # Preparing spin
-        self.spin_time = 1
+        self.__spin_time = 1
+        self.__rate = rospy.Rate(1/self.__spin_time)
 
+        # Preparing the communication with the navigation stack
+        self.__nav_sub = rospy.Subscriber('robot_0/move_base/status', GoalStatusArray, self.__NavStack_callback, queue_size= 10)
+        self.__last_state = GoalStatus.SUCCEEDED 
         return
 
+    def __NavStack_callback(self,msg):
+        # Callback with the information from the navigation stack
+        if len(msg.status_list) == 0:
+            return
+        if (msg.status_list[0].status != self.__last_state):
+            self.__SetNewStatus(msg.status_list[0].status)
+        return
+
+    def __SetNewStatus(self, status):
+        # Shows a new status with the leds and sounds of the turtlebot
+
+        print (str(status) + " " + str(self.__last_state) )
+        self.__last_state = status 
+
+        
+        #http://docs.ros.org/api/actionlib_msgs/html/msg/GoalStatus.html
+        if (status == GoalStatus.PENDING):
+            print ("pending")
+            return
+        if (status == GoalStatus.ACTIVE):
+            # The goal is currently being processed by the action server
+            self.__leds['1'].Status("orange", "blinking", "on")
+            self.__leds['2'].Status("orange", "blinking", "off")
+            self.__sounds.Play(3) # Small bip
+            return
+        if (status == GoalStatus.PREEMPTED):
+            print ("pending")
+            return
+        if (status == GoalStatus.SUCCEEDED):
+            self.__leds['1'].Status("green")
+            self.__leds['2'].Status("off")
+            self.__sounds.Play(3) # Really small bip
+            return
+        if (status == GoalStatus.ABORTED):
+            self.__leds['1'].Status("red","blinking", "on")
+            self.__leds['2'].Status("red","blinking", "off")
+            self.__sounds.Play(5)  #Complaining
+            return
+        if (status == GoalStatus.REJECTED):
+            print ("rejected")
+            return
+        if (status == GoalStatus.PREEMPTING):
+            print ("preempting")
+            return
+        if (status == GoalStatus.RECALLING):
+            print ("recalling")
+            return
+        if (status == GoalStatus.RECALLED):
+            print ("recalled")
+            return
+        if (status == GoalStatus.LOST):
+            print ("lost")
+            return
+        
     def Spin(self):
         # Main loop that spins while the robot moves  
         
-        rate = rospy.Rate(1/self.spin_time)
         while not rospy.is_shutdown():
-            rospy.loginfo("Hey")
-            rate.sleep()
+            self.__rate.sleep()
 
 
 turtle = Turtlebot()
 
 turtle.Spin()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Example code for the navigation stack
-# import rospy
-
-# # Brings in the SimpleActionClient
-# import actionlib
-# # Brings in the .action file and messages used by the move base action
-# from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-
-# def movebase_client():
-
-#    # Create an action client called "move_base" with action definition file "MoveBaseAction"
-#     client = actionlib.SimpleActionClient('move_base',MoveBaseAction)
- 
-#    # Waits until the action server has started up and started listening for goals.
-#     client.wait_for_server()
-
-#    # Creates a new goal with the MoveBaseGoal constructor
-#     goal = MoveBaseGoal()
-#     goal.target_pose.header.frame_id = "map"
-#     goal.target_pose.header.stamp = rospy.Time.now()
-#    # Move 0.5 meters forward along the x axis of the "map" coordinate frame 
-#     goal.target_pose.pose.position.x = 0.5
-#    # No rotation of the mobile base frame w.r.t. map frame
-#     goal.target_pose.pose.orientation.w = 1.0
-
-#    # Sends the goal to the action server.
-#     client.send_goal(goal)
-#    # Waits for the server to finish performing the action.
-#     wait = client.wait_for_result()
-#    # If the result doesn't arrive, assume the Server is not available
-#     if not wait:
-#         rospy.logerr("Action server not available!")
-#         rospy.signal_shutdown("Action server not available!")
-#     else:
-#     # Result of executing the action
-#         return client.get_result()   
-
-# # If the python node is executed as main process (sourced directly)
-# if __name__ == '__main__':
-#     try:
-#        # Initializes a rospy node to let the SimpleActionClient publish and subscribe
-#         rospy.init_node('movebase_client_py')
-#         result = movebase_client()
-#         if result:
-#             rospy.loginfo("Goal execution done!")
-#     except rospy.ROSInterruptException:
-#         rospy.loginfo("Navigation test finished.")
