@@ -215,10 +215,15 @@ class Turtlebot():
         # Preparing the communication with the navigation stack
         self.__nav_sub = rospy.Subscriber('move_base/status', GoalStatusArray, self.__NavStack_callback, queue_size= 10)
         self.__last_state = GoalStatus.SUCCEEDED 
+        self.__nav_stack_awake = False
         return
 
     def __NavStack_callback(self,msg):
         # Callback with the information from the navigation stack
+        if (not self.__nav_stack_awake):
+            self.__nav_stack_awake = True
+            self.__sounds.Play('turn on')
+
         if len(msg.status_list) == 0:
             return
         if (msg.status_list[0].status != self.__last_state):
