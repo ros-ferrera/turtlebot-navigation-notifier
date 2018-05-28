@@ -253,10 +253,10 @@ class Turtlebot():
         # In priority order
         if GoalStatus.ABORTED in status_str:    # 4  
             return GoalStatus.ABORTED
-        if GoalStatus.SUCCEEDED in status_str:  # 3
-            return GoalStatus.SUCCEEDED
         if GoalStatus.PREEMPTED in status_str:  # 2
             return GoalStatus.PREEMPTED
+        if GoalStatus.SUCCEEDED in status_str:  # 3
+            return GoalStatus.SUCCEEDED
         if GoalStatus.ACTIVE in status_str:     # 1
             return GoalStatus.ACTIVE
         if GoalStatus.PENDING in status_str:      
