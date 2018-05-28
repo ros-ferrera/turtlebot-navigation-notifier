@@ -222,7 +222,7 @@ class Turtlebot():
         # Callback with the information from the navigation stack
         if (not self.__nav_stack_awake):
             self.__nav_stack_awake = True
-            print "Navigaton stack on"
+            # print "Navigaton stack on"
             self.__sounds.Play('turn on')
 
         if len(msg.status_list) == 0:
@@ -233,39 +233,23 @@ class Turtlebot():
         if (dominant_status != self.__last_state):
             self.__SetNewStatus(dominant_status)
 
-        
-        print "-----------"
-        for msg in msg.status_list:
-            if (msg.status == dominant_status):
-                string = "d->"
-            else:
-                string = "   "
-            print (string + str(msg.status) + ":" + msg.text)
-        print "-----------"
+        # print "-----------"
+        # for msg in msg.status_list:
+        #     if (msg.status == dominant_status):
+        #         string = "d->"
+        #     else:
+        #         string = "   "
+        #     print (string + str(msg.status) + ":" + msg.text)
+        # print "-----------"
         return
 
     def __DominantStatus(self, all_status):
         # Returns the dominant status in a list of status
-        status_str = []
+        status_list = []
         for msg in all_status:
-            status_str.append(msg.status)
+            status_list.append(msg.status)
             
-        return min(status_str)
-        
-        # In priority order
-        if GoalStatus.ABORTED in status_str:    # 4  
-            return GoalStatus.ABORTED
-        if GoalStatus.PREEMPTED in status_str:  # 2
-            return GoalStatus.PREEMPTED
-        if GoalStatus.SUCCEEDED in status_str:  # 3
-            return GoalStatus.SUCCEEDED
-        if GoalStatus.ACTIVE in status_str:     # 1
-            return GoalStatus.ACTIVE
-        if GoalStatus.PENDING in status_str:      
-            return GoalStatus.PENDING
-
-        # Any other state is not reflected on this system
-        return status_str[0]
+        return min(status_list)
         
     def __SetNewStatus(self, status):
         # Shows a new status with the leds and sounds of the turtlebot
@@ -273,30 +257,30 @@ class Turtlebot():
         
         #http://docs.ros.org/api/actionlib_msgs/html/msg/GoalStatus.html
         if (status == GoalStatus.PENDING):
-            print ("pending")
+            # print ("pending")
             self.__leds['2'].Status("orange")
             return
         if (status == GoalStatus.PREEMPTED): # 2
-            print ("preempted")
+            # print ("preempted")
             # Transition status (reset leds) (silent active)
             self.__leds['1'].Status("green", "blinking", "on")
             self.__leds['2'].Status("green", "blinking", "off")
             return
         if (status == GoalStatus.ACTIVE): # 1
-            print ("active")
+            # print ("active")
             # The goal is currently being processed by the action server
             self.__leds['1'].Status("orange", "blinking", "on")
             self.__leds['2'].Status("orange", "blinking", "off")
             self.__sounds.Play(3) # Small bip
             return
         if (status == GoalStatus.SUCCEEDED):
-            print ("succeed")
+            # print ("succeed")
             self.__leds['1'].Status("green")
             self.__leds['2'].Status("off")
             self.__sounds.Play(3) # Small bip
             return
         if (status == GoalStatus.ABORTED):
-            print ("aborted")
+            # print ("aborted")
             self.__leds['1'].Status("red","blinking", "on")
             self.__leds['2'].Status("red","blinking", "off")
             self.__sounds.Play(4)  #Complaining
