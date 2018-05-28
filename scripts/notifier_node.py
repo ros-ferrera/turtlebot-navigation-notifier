@@ -249,6 +249,8 @@ class Turtlebot():
         status_str = []
         for msg in all_status:
             status_str.append(msg.status)
+            
+        return min(status_str)
         
         # In priority order
         if GoalStatus.ABORTED in status_str:    # 4  
@@ -291,7 +293,7 @@ class Turtlebot():
             print ("succeed")
             self.__leds['1'].Status("green")
             self.__leds['2'].Status("off")
-            self.__sounds.Play(3) # Really small bip
+            self.__sounds.Play(3) # Small bip
             return
         if (status == GoalStatus.ABORTED):
             print ("aborted")
