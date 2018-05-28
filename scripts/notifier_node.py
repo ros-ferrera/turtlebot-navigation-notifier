@@ -42,7 +42,7 @@ class TurtleLed():
     def __init__(self, led_num):
         if (led_num == 1 or led_num == 2):
             self.__led_num = led_num
-            self.__led_pub = rospy.Publisher('/mobile_base/commands/led' + str(led_num), Led, queue_size= 3)
+            self.__led_pub = rospy.Publisher('mobile_base/commands/led' + str(led_num), Led, queue_size= 3)
         else:
             print ("!! Invalid led " + str(led) + ", must be either '1' or '2'")
             rospy.signal_shutdown("Wrong led number used")
@@ -153,7 +153,7 @@ class TurtleSound():
     #   - 6 'cleaning end'
     def __init__(self):
         
-        self.__sound_pub = rospy.Publisher('/mobile_base/commands/sound', Sound, queue_size= 3)
+        self.__sound_pub = rospy.Publisher('mobile_base/commands/sound', Sound, queue_size= 3)
 
         self.__sounds = {
             'turn on': Sound.ON,
@@ -213,7 +213,7 @@ class Turtlebot():
         self.__rate = rospy.Rate(1/self.__spin_time)
 
         # Preparing the communication with the navigation stack
-        self.__nav_sub = rospy.Subscriber('robot_0/move_base/status', GoalStatusArray, self.__NavStack_callback, queue_size= 10)
+        self.__nav_sub = rospy.Subscriber('move_base/status', GoalStatusArray, self.__NavStack_callback, queue_size= 10)
         self.__last_state = GoalStatus.SUCCEEDED 
         return
 
