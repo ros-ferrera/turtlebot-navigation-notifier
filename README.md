@@ -14,3 +14,11 @@ Simple node that uses the leds and the speker of the turtlebot 2 to notify the s
   - Navigation Stack ABORTED    (The goal was aborted, terminal state)
     Leds blinking in red, in an alternate way. Small bip. Your robot did not reached its destination.
 * Any other state (REJECTED, PREEMPTING, RECALLING, RECALLED and LOST) is ignored by the system
+
+# Requirements
+* Kobuki base (base from a turtlebot 2)
+* Navigation stack
+
+# Guidelines
+To run the node execute:
+* rosrun turtlebot_navigation_notifier notifier_node.py
