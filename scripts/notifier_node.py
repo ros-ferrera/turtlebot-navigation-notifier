@@ -22,6 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# @author: Eduardo Ferrera
+# @version: 0.1.0
+# @date: 28/5/18
+# @brief:  Simple node that uses the leds and sounds of the turtlebot 2 to show the status of the navigation stack.
+
 import rospy
 
 # Kobuki includes
